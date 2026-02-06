@@ -1,0 +1,31 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# Database
+sqlalchemy
+alembic
+psycopg2-binary
+
+# Task Queue
+celery
+redis
+
+# HTTP Client
+httpx
+
+# Crawler
+crawl4ai
+
+# LLM
+ollama
+
+# Utilities
+python-dotenv
+python-multipart
+
+# Development
+pytest
+black
+ruff

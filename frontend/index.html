@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanad AEO Auditor - Arabic E-Commerce Optimization Checker</title>
+    <meta name="description" content="Comprehensive AEO auditing for Arabic e-commerce sites. Check AI agent visibility, protocol compliance, and content quality.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Severity colors */
+            --severity-critical: #DC2626;
+            --severity-high: #EA580C;
+            --severity-medium: #F59E0B;
+            --severity-low: #3B82F6;
+            --severity-none: #10B981;
+            
+            /* Background variants */
+            --bg-critical: #FEE2E2;
+            --bg-high: #FFEDD5;
+            --bg-medium: #FEF3C7;
+            --bg-low: #DBEAFE;
+            --bg-none: #D1FAE5;
+            
+            /* Neutrals */
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F9FAFB;
+            --border-color: #E5E7EB;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 400px 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            font-size: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .score-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--score-color) calc(var(--score) * 1%),
+                #f3f4f6 0
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .score-circle::before {
+            content: '';
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .score-value {
+            position: relative;
+z-index: 1;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--score-color);
+        }
+
+        .severity-chips {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+
+        .chip {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chip-critical {
+            background: var(--bg-critical);
+            color: var(--severity-critical);
+        }
+
+        .chip-high {
+            background: var(--bg-high);
+            color: var(--severity-high);
+        }
+
+        .chip-medium {
+            background: var(--bg-medium);
+            color: var(--severity-medium);
+        }
+
+        .chip-low {
+            background: var(--bg-low);
+            color: var(--severity-low);
+        }
+
+        .issue-group {
+            margin-bottom: 2rem;
+        }
+
+        .issue-group h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .issue-card {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+
+        .issue-card.critical {
+            border-color: var(--severity-critical);
+        }
+
+        .issue-card.high {
+            border-color: var(--severity-high);
+        }
+
+        .issue-card.medium {
+            border-color: var(--severity-medium);
+        }
+
+        .issue-card h4 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .issue-card p {
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .recommendation {
+            background: var(--bg-low);
+            border-left: 3px solid var(--severity-low);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+
+        .recommendation strong {
+            color: var(--severity-low);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-error {
+            background: var(--bg-critical);
+            color: var(--severity-critical);
+            border: 1px solid var(--severity-critical);
+        }
+
+        .detailed-findings {
+            margin-top: 2rem;
+        }
+
+        .findings-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .finding-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .finding-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-found {
+            background: var(--bg-none);
+            color: var(--severity-none);
+        }
+
+        .status-missing {
+            background: var(--bg-critical);
+            color: var(--severity-critical);
+        }
+
+        .status-blocked {
+            background: var(--bg-critical);
+            color: var(--severity-critical);
+        }
+
+        .status-accessible {
+            background: var(--bg-none);
+            color: var(--severity-none);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Sanad AEO Auditor</h1>
+            <p>Comprehensive Answer Engine Optimization for Arabic E-Commerce</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Sidebar with form -->
+            <div class="sidebar">
+                <div class="card">
+                    <h2>Start Audit</h2>
+                    <form id="auditForm">
+                        <div class="form-group">
+                            <label for="productUrl">Product Page URL</label>
+                            <input 
+                                type="url" 
+                                id="productUrl" 
+                                name="url" 
+                                placeholder="https://store.salla.sa/products/..." 
+                                required
+                                dir="ltr"
+                            >
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            Generate Report
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Main content area -->
+            <div class="main-content">
+                <!-- Loading state -->
+                <div class="loading card" id="loadingState">
+                    <div class="spinner"></div>
+                    <h3>Analyzing your site...</h3>
+                    <p>This may take 30-60 seconds. We're checking:</p>
+                    <ul style="text-align: left; margin-top: 1rem; color: var(--text-secondary); list-style-position: inside;">
+                        <li>Protocol compliance (llms.txt, agent-card.json)</li>
+                        <li>Content extraction (bilingual)</li>
+                        <li>Schema validation</li>
+                        <li>AI agent accessibility</li>
+                        <li>Content quality with AI</li>
+                    </ul>
+                </div>
+
+                <!-- Error state -->
+                <div class="alert alert-error hidden" id="errorState"></div>
+
+                <!-- Results -->
+                <div class="results" id="resultsContainer">
+                    <!-- Overall score -->
+                    <div class="card">
+                        <h2>Overall AEO Score</h2>
+                        <div class="score-circle" style="--score: 0; --score-color: var(--severity-critical);">
+                            <div class="score-value" id="scoreValue">0</div>
+                        </div>
+                        <div class="severity-chips" id="severityChips"></div>
+                    </div>
+
+                    <!-- Issues -->
+                    <div class="card" id="issuesContainer">
+                        <h2>Issues Found</h2>
+                        <div id="issuesList"></div>
+                    </div>
+
+                    <!-- Detailed findings -->
+                    <div class="card detailed-findings">
+                        <h2>Detailed Findings</h2>
+                        <div class="findings-grid" id="detailedFindings"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+
+        const form = document.getElementById('auditForm');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('productUrl').value;
+            
+            // Show loading
+            loadingState.style.display = 'block';
+            resultsContainer.style.display = 'none';
+            errorState.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Analyzing...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/reports/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Audit failed');
+                }
+
+                const report = await response.json();
+                displayResults(report);
+
+            } catch (error) {
+                console.error('Error:', error);
+                errorState.textContent = `Error: ${error.message}. Please check that the URL is valid and the server is running.`;
+                errorState.classList.remove('hidden');
+                loadingState.style.display = 'none';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Generate Report';
+            }
+        });
+
+        function displayResults(report) {
+            loadingState.style.display = 'none';
+            resultsContainer.style.display = 'block';
+
+            // Overall score
+            const score = report.overall_score || 0;
+            const scoreColor = score >= 80 ? 'var(--severity-none)' : 
+                             score >= 60 ? 'var(--severity-medium)' : 
+                             'var(--severity-critical)';
+            
+            document.querySelector('.score-circle').style.setProperty('--score', score);
+            document.querySelector('.score-circle').style.setProperty('--score-color', scoreColor);
+            document.getElementById('scoreValue').textContent = score;
+            document.getElementById('scoreValue').style.color = scoreColor;
+
+            // Severity chips
+            const issues = report.issues || [];
+            const criticalCount = issues.filter(i => i.severity === 'critical').length;
+            const highCount = issues.filter(i => i.severity === 'high').length;
+            const mediumCount = issues.filter(i => i.severity === 'medium').length;
+            const lowCount = issues.filter(i => i.severity === 'low').length;
+
+            const chipsHtml = `
+                ${criticalCount > 0 ? `<div class="chip chip-critical">🔴 Critical: ${criticalCount}</div>` : ''}
+                ${highCount > 0 ? `<div class="chip chip-high">⚠️ High: ${highCount}</div>` : ''}
+                ${mediumCount > 0 ? `<div class="chip chip-medium">🟡 Medium: ${mediumCount}</div>` : ''}
+                ${lowCount > 0 ? `<div class="chip chip-low">ℹ️ Low: ${lowCount}</div>` : ''}
+            `;
+            document.getElementById('severityChips').innerHTML = chipsHtml || '<p style="color: var(--severity-none); font-weight: 500;">✅ No issues found!</p>';
+
+            // Issues list
+            displayIssues(issues);
+
+            // Detailed findings
+            displayDetailedFindings(report);
+        }
+
+        function displayIssues(issues) {
+const grouped = {
+                critical: issues.filter(i => i.severity === 'critical'),
+                high: issues.filter(i => i.severity === 'high'),
+                medium: issues.filter(i => i.severity === 'medium'),
+                low: issues.filter(i => i.severity === 'low')
+            };
+
+            let html = '';
+
+            if (grouped.critical.length > 0) {
+                html += `<div class="issue-group"><h3 style="color: var(--severity-critical);">🔴 Critical Issues (${grouped.critical.length})</h3>`;
+                grouped.critical.forEach(issue => {
+                    html += createIssueCard(issue, 'critical');
+                });
+                html += '</div>';
+            }
+
+            if (grouped.high.length > 0) {
+                html += `<div class="issue-group"><h3 style="color: var(--severity-high);">⚠️ High Priority (${grouped.high.length})</h3>`;
+                grouped.high.forEach(issue => {
+                    html += createIssueCard(issue, 'high');
+                });
+                html += '</div>';
+            }
+
+            if (grouped.medium.length > 0) {
+                html += `<div class="issue-group"><h3 style="color: var(--severity-medium);">🟡 Medium Priority (${grouped.medium.length})</h3>`;
+                grouped.medium.forEach(issue => {
+                    html += createIssueCard(issue, 'medium');
+                });
+                html += '</div>';
+            }
+
+            if (grouped.low.length > 0) {
+                html += `<div class="issue-group"><h3 style="color: var(--severity-low);">ℹ️ Low Priority (${grouped.low.length})</h3>`;
+                grouped.low.forEach(issue => {
+                    html += createIssueCard(issue, 'low');
+                });
+                html += '</div>';
+            }
+
+            document.getElementById('issuesList').innerHTML = html || '<p style="color: var(--severity-none); font-weight: 500;">✅ No issues detected! Your site is optimized for AI agents.</p>';
+        }
+
+        function createIssueCard(issue, severity) {
+            return `
+                <div class="issue-card ${severity}">
+                    <h4>${issue.title}</h4>
+                    <p>${issue.description}</p>
+                    ${issue.recommendation ? `
+                        <div class="recommendation">
+                            <strong>💡 Fix:</strong> ${issue.recommendation}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function displayDetailedFindings(report) {
+            const protocol = report.protocol || {};
+            const edge = report.edge_visibility || {};
+            const schema = report.schema || {};
+            const content = report.content_quality || {};
+
+            const html = `
+                <h3 style="margin-bottom: 1rem;">Protocol Compliance</h3>
+                <div class="finding-item">
+                    <span>llms.txt</span>
+                    <span class="status-badge status-${protocol.llms_txt?.status === 'found' ? 'found' : 'missing'}">
+                        ${protocol.llms_txt?.status || 'unknown'}
+                    </span>
+                </div>
+                <div class="finding-item">
+                    <span>agent-card.json</span>
+                    <span class="status-badge status-${protocol.agent_card?.status === 'found' ? 'found' : 'missing'}">
+                        ${protocol.agent_card?.status || 'unknown'}
+                    </span>
+                </div>
+                <div class="finding-item">
+                    <span>robots.txt</span>
+                    <span class="status-badge status-${protocol.robots_txt?.status === 'found' ? 'found' : 'missing'}">
+                        ${protocol.robots_txt?.status || 'unknown'}
+                    </span>
+                </div>
+
+                <h3 style="margin: 2rem 0 1rem;">AI Agent Accessibility</h3>
+                <div class="finding-item">
+                    <span>Accessible Agents</span>
+                    <span class="status-badge status-accessible">
+                        ${edge.summary?.accessible_agents || 0} / ${edge.summary?.total_agents_tested || 6}
+                    </span>
+                </div>
+                <div class="finding-item">
+                    <span>Blocked Agents</span>
+                    <span class="status-badge status-${edge.summary?.blocked_agents > 0 ? 'blocked' : 'accessible'}">
+                        ${edge.summary?.blocked_agents || 0}
+                    </span>
+                </div>
+
+                <h3 style="margin: 2rem 0 1rem;">Content Quality</h3>
+                <div class="finding-item">
+                    <span>Overall Score</span>
+                    <strong>${content.overall_score || 0}/10</strong>
+                </div>
+                <div class="finding-item">
+                    <span>Recommendation</span>
+                    <span style="color: var(--text-secondary); font-size: 0.875rem;">${content.recommendation || 'N/A'}</span>
+                </div>
+            `;
+
+            document.getElementById('detailedFindings').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
