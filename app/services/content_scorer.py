@@ -24,13 +24,15 @@ async def score_content_with_ollama(text: str, ollama_host: str = "http://localh
         Scoring results from LLM
     """
     
-    prompt = f"""You are an Arabic content quality analyzer for e-commerce.
+    prompt = f"""You are an Arabic content quality analyzer for e-commerce, specialized in Gulf Arabic (Khaliji) markets.
 
 Analyze this product description and score it (0-10) across these dimensions:
 1. Naturalness: Does it sound human and conversational? (10 = very human, 0 = very robotic)
 2. Keyword Stuffing: Is it repetitive or over-optimized? (10 = no stuffing, 0 = heavy stuffing)
 3. AEO Readiness: Does it answer questions directly and clearly? (10 = perfect for Q&A, 0 = poor)
 4. Dialect Usage: Does it use regional Arabic (Khaliji/Gulf) naturally? (10 = authentic dialect, 0 = none)
+5. Linguistic Precision: Does it use local terminology (e.g., جوال not هاتف محمول)? (10 = perfect local terms, 0 = literal translations)
+6. Translation Quality: Is it free from "Google Translate" awkwardness? (10 = natural Arabic, 0 = robotic translation)
 
 Text to analyze:
 {text[:1000]}
@@ -41,7 +43,10 @@ Return ONLY a valid JSON object with no additional text:
   "keyword_stuffing_reverse": <score 0-10>,
   "aeo_readiness": <score 0-10>,
   "dialect_usage": <score 0-10>,
-  "reasoning": "<brief explanation in English>"
+  "linguistic_precision": <score 0-10>,
+  "translation_quality": <score 0-10>,
+  "reasoning": "<brief explanation in English>",
+  "local_terminology_used": <true or false>
 }}"""
     
     try:
@@ -113,7 +118,10 @@ def parse_ollama_response(response: str) -> Dict:
             "keyword_stuffing_reverse": float(parsed.get("keyword_stuffing_reverse", 5)),
             "aeo_readiness": float(parsed.get("aeo_readiness", 5)),
             "dialect_usage": float(parsed.get("dialect_usage", 5)),
-            "reasoning": parsed.get("reasoning", "")
+            "linguistic_precision": float(parsed.get("linguistic_precision", 5)),
+            "translation_quality": float(parsed.get("translation_quality", 5)),
+            "reasoning": parsed.get("reasoning", ""),
+            "local_terminology_used": parsed.get("local_terminology_used", False)
         }
         
     except Exception as e:
@@ -289,23 +297,195 @@ def check_aeo_readiness(text: str, html: Optional[str] = None) -> Dict:
     }
 
 
+def check_structural_scannability(text: str, html: Optional[str] = None) -> Dict:
+    """
+    Check RTL layout optimization and front-loading
+    
+    Validates:
+    - Direct answer front-loading (first 100 characters)
+    - HTML spec tables (better for Arabic)
+    - Question-based headers
+    
+    Args:
+        text: Content text
+        html: Optional HTML for structure analysis
+    
+    Returns:
+        Structural scannability analysis
+    """
+    
+    issues = []
+    
+    # Check if first 100 characters contain key info (price, benefit)
+    first_100 = text[:100] if len(text) >= 100 else text
+    
+    # Price patterns in Arabic
+    price_patterns = [r'\d+\s*ريال', r'\d+\s*SAR', r'\d+\s*درهم', r'\d+\s*AED']
+    has_early_price = any(re.search(pattern, first_100) for pattern in price_patterns)
+    
+    if not has_early_price and len(text) >= 100:
+        issues.append({
+            "type": "no_front_loaded_price",
+            "severity": "medium",
+            "message": "Price not mentioned in first 100 characters"
+        })
+    
+    # Check for HTML tables (better for Arabic specs)
+    has_tables = False
+    question_headers = []
+    
+    if html:
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            tables = soup.find_all('table')
+            has_tables = len(tables) > 0
+            
+            if not has_tables:
+                issues.append({
+                    "type": "no_spec_tables",
+                    "severity": "low",
+                    "message": "No HTML tables found (recommended for Arabic spec display)"
+                })
+            
+            # Check for question-based headers
+            for h in soup.find_all(['h2', 'h3']):
+                header_text = h.get_text()
+                if any(q in header_text for q in ['ما هي', 'ما هو', 'كيف', 'لماذا', 'متى']):
+                    question_headers.append(header_text)
+            
+            if len(question_headers) == 0:
+                issues.append({
+                    "type": "no_question_headers",
+                    "severity": "medium",
+                    "message": "No question-based H2/H3 headers (e.g., 'ما هي مميزات المنتج؟')"
+                })
+        except Exception as e:
+            pass
+    
+    # Calculate score
+    score = max(0, 10 - len(issues) * 2.5)
+    
+    return {
+        "has_issues": len(issues) > 0,
+        "issues": issues,
+        "has_early_price": has_early_price,
+        "has_tables": has_tables,
+        "question_headers_count": len(question_headers),
+        "score": round(score, 1)
+    }
+
+
+def check_technical_authority(jsonld: Optional[Dict], html: Optional[str]) -> Dict:
+    """
+    Check Arabic metadata completeness and local trust signals
+    
+    Validates:
+    - Arabic JSON-LD strings
+    - Arabic alt-text on images
+    - Local payment method mentions (trust signals)
+    
+    Args:
+        jsonld: Product JSON-LD data
+        html: HTML content
+    
+    Returns:
+        Technical authority analysis
+    """
+    
+    issues = []
+    found_local_payments = []
+    missing_alt = 0
+    
+    # Check JSON-LD for Arabic strings
+    if jsonld:
+        name = jsonld.get("name", "")
+        description = jsonld.get("description", "")
+        
+        # Detect Arabic characters
+        arabic_pattern = re.compile(r'[\u0600-\u06FF]')
+        
+        if name and not arabic_pattern.search(str(name)):
+            issues.append({
+                "type": "non_arabic_name",
+                "severity": "high",
+                "message": "Product name in JSON-LD is not in Arabic"
+            })
+        
+        if description and not arabic_pattern.search(str(description)):
+            issues.append({
+                "type": "non_arabic_description",
+                "severity": "high",
+                "message": "Product description in JSON-LD is not in Arabic"
+            })
+    
+    # Check for Arabic alt-text
+    if html:
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            images = soup.find_all('img')
+            
+            for img in images:
+                alt = img.get('alt', '')
+                if not alt or not re.search(r'[\u0600-\u06FF]', alt):
+                    missing_alt += 1
+            
+            if missing_alt > 0:
+                issues.append({
+                    "type": "missing_arabic_alt_text",
+                    "severity": "medium",
+                    "count": missing_alt,
+                    "message": f"{missing_alt} images missing Arabic alt-text"
+                })
+        except Exception as e:
+            pass
+    
+    # Check for local payment method mentions (trust signals)
+    text_combined = str(jsonld or "") + " " + (html or "")
+    local_payment_keywords = [
+        "مدى", "Mada", "تمارا", "Tamara", "تابي", "Tabby",
+        "STC Pay", "stc pay", "Apple Pay", "الدفع عند الاستلام"
+    ]
+    
+    found_local_payments = [kw for kw in local_payment_keywords if kw in text_combined]
+    
+    if not found_local_payments:
+        issues.append({
+            "type": "no_local_trust_signals",
+            "severity": "low",
+            "message": "No local payment methods mentioned (Mada, Tamara, STC Pay)"
+        })
+    
+    # Calculate score
+    score = max(0, 10 - len(issues) * 2.5)
+    
+    return {
+        "has_issues": len(issues) > 0,
+        "issues": issues,
+        "local_trust_signals": found_local_payments,
+        "missing_alt_text_count": missing_alt,
+        "score": round(score, 1)
+    }
+
+
 async def score_product_content(
     text: str,
     html: Optional[str] = None,
+    jsonld: Optional[Dict] = None,
     ollama_host: str = "http://localhost:11434",
     model: str = "qwen3:8b"
 ) -> Dict:
     """
-    Complete content quality scoring
+    Complete content quality scoring with advanced Arabic checks
     
     Args:
         text: Content to score
         html: Optional HTML for structure analysis
+        jsonld: Optional JSON-LD Product schema
         ollama_host: Ollama API endpoint
         model: Ollama model to use
     
     Returns:
-        Complete scoring results
+        Complete scoring results with all quality dimensions
     """
     
     # 1. Quick heuristic checks
@@ -314,7 +494,11 @@ async def score_product_content(
     # 2. AEO structure check
     aeo_check = check_aeo_readiness(text, html)
     
-    # 3. LLM-based deep analysis (only if worth analyzing)
+    # 3. Advanced Arabic quality checks
+    structural_check = check_structural_scannability(text, html)
+    technical_check = check_technical_authority(jsonld, html)
+    
+    # 4. LLM-based deep analysis (only if worth analyzing)
     if robotic_check["score"] >= 4 and len(text) > 20:
         llm_score = await score_content_with_ollama(text, ollama_host, model)
     else:
@@ -323,19 +507,27 @@ async def score_product_content(
             "keyword_stuffing_reverse": robotic_check["score"],
             "aeo_readiness": aeo_check["score"],
             "dialect_usage": 0,
+            "linguistic_precision": 5,
+            "translation_quality": 5,
             "reasoning": "Skipped LLM analysis (failed heuristic checks or too short)",
             "skipped": True
         }
     
-    # Combine scores
-    overall = (
-        robotic_check["score"] * 0.3 +
-        aeo_check["score"] * 0.3 +
-        llm_score.get("naturalness", 0) * 0.4
-    )
+    # Combine scores with weighted average
+    scores = [
+        robotic_check["score"],
+        aeo_check["score"],
+        structural_check["score"],
+        technical_check["score"],
+        llm_score.get("naturalness", 0)
+    ]
+    
+    overall = sum(scores) / len(scores)
     
     # Generate recommendation
-    recommendation = generate_recommendation(robotic_check, aeo_check, llm_score)
+    recommendation = generate_recommendation(
+        robotic_check, aeo_check, structural_check, technical_check, llm_score
+    )
     
     # Determine severity
     if overall < 5:
@@ -350,21 +542,29 @@ async def score_product_content(
         "severity": severity,
         "robotic_patterns": robotic_check,
         "aeo_readiness": aeo_check,
+        "structural_scannability": structural_check,
+        "technical_authority": technical_check,
         "llm_analysis": llm_score,
         "recommendation": recommendation
     }
 
 
-def generate_recommendation(robotic: Dict, aeo: Dict, llm: Dict) -> str:
-    """Generate actionable recommendations"""
+def generate_recommendation(robotic: Dict, aeo: Dict, structural: Dict, technical: Dict, llm: Dict) -> str:
+    """Generate actionable recommendations based on all checks"""
     
     if robotic["score"] < 5:
         return "CRITICAL: Content appears robotic or keyword-stuffed. Rewrite needed."
+    elif technical["score"] < 5:
+        return "FIX: Add Arabic metadata to JSON-LD and image alt-text for AI trust."
+    elif structural["score"] < 5:
+        return "RESTRUCTURE: Front-load key info (price, benefits) and use spec tables."
     elif aeo["score"] < 5:
         return "IMPROVE: Add Q&A structure, headings, and direct answers for AEO."
     elif llm.get("dialect_usage", 0) < 3:
         return "ENHANCE: Consider adding regional dialect (Khaliji) for authenticity."
+    elif llm.get("linguistic_precision", 0) < 5:
+        return "REFINE: Use local terminology (e.g., جوال not هاتف محمول) for better AI mapping."
     elif llm.get("naturalness", 0) < 7:
         return "IMPROVE: Make content more conversational and human-like."
     else:
-        return "GOOD: Content is human-first and AEO-ready."
+        return "EXCELLENT: Content is human-first, AEO-ready, and locally optimized."

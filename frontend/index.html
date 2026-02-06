@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sanad AEO Auditor - Arabic E-Commerce Optimization Checker</title>
-    <meta name="description" content="Comprehensive AEO auditing for Arabic e-commerce sites. Check AI agent visibility, protocol compliance, and content quality.">
+    <meta name="description"
+        content="Comprehensive AEO auditing for Arabic e-commerce sites. Check AI agent visibility, protocol compliance, and content quality.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,14 +24,14 @@
             --severity-medium: #F59E0B;
             --severity-low: #3B82F6;
             --severity-none: #10B981;
-            
+
             /* Background variants */
             --bg-critical: #FEE2E2;
             --bg-high: #FFEDD5;
             --bg-medium: #FEF3C7;
             --bg-low: #DBEAFE;
             --bg-none: #D1FAE5;
-            
+
             /* Neutrals */
             --text-primary: #1F2937;
             --text-secondary: #6B7280;
@@ -170,8 +172,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .results {
@@ -182,10 +189,8 @@
             width: 200px;
             height: 200px;
             border-radius: 50%;
-            background: conic-gradient(
-                var(--score-color) calc(var(--score) * 1%),
-                #f3f4f6 0
-            );
+            background: conic-gradient(var(--score-color) calc(var(--score) * 1%),
+                    #f3f4f6 0);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -204,7 +209,7 @@
 
         .score-value {
             position: relative;
-z-index: 1;
+            z-index: 1;
             font-size: 3rem;
             font-weight: 700;
             color: var(--score-color);
@@ -366,6 +371,7 @@ z-index: 1;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -381,14 +387,8 @@ z-index: 1;
                     <form id="auditForm">
                         <div class="form-group">
                             <label for="productUrl">Product Page URL</label>
-                            <input 
-                                type="url" 
-                                id="productUrl" 
-                                name="url" 
-                                placeholder="https://store.salla.sa/products/..." 
-                                required
-                                dir="ltr"
-                            >
+                            <input type="url" id="productUrl" name="url"
+                                placeholder="https://store.salla.sa/products/..." required dir="ltr">
                         </div>
                         <button type="submit" class="btn btn-primary" id="submitBtn">
                             Generate Report
@@ -404,7 +404,8 @@ z-index: 1;
                     <div class="spinner"></div>
                     <h3>Analyzing your site...</h3>
                     <p>This may take 30-60 seconds. We're checking:</p>
-                    <ul style="text-align: left; margin-top: 1rem; color: var(--text-secondary); list-style-position: inside;">
+                    <ul
+                        style="text-align: left; margin-top: 1rem; color: var(--text-secondary); list-style-position: inside;">
                         <li>Protocol compliance (llms.txt, agent-card.json)</li>
                         <li>Content extraction (bilingual)</li>
                         <li>Schema validation</li>
@@ -454,9 +455,9 @@ z-index: 1;
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const url = document.getElementById('productUrl').value;
-            
+
             // Show loading
             loadingState.style.display = 'block';
             resultsContainer.style.display = 'none';
@@ -497,10 +498,10 @@ z-index: 1;
 
             // Overall score
             const score = report.overall_score || 0;
-            const scoreColor = score >= 80 ? 'var(--severity-none)' : 
-                             score >= 60 ? 'var(--severity-medium)' : 
-                             'var(--severity-critical)';
-            
+            const scoreColor = score >= 80 ? 'var(--severity-none)' :
+                score >= 60 ? 'var(--severity-medium)' :
+                    'var(--severity-critical)';
+
             document.querySelector('.score-circle').style.setProperty('--score', score);
             document.querySelector('.score-circle').style.setProperty('--score-color', scoreColor);
             document.getElementById('scoreValue').textContent = score;
@@ -529,7 +530,7 @@ z-index: 1;
         }
 
         function displayIssues(issues) {
-const grouped = {
+            const grouped = {
                 critical: issues.filter(i => i.severity === 'critical'),
                 high: issues.filter(i => i.severity === 'high'),
                 medium: issues.filter(i => i.severity === 'medium'),
@@ -643,4 +644,5 @@ const grouped = {
         }
     </script>
 </body>
+
 </html>

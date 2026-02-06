@@ -11,10 +11,108 @@ Use local Ollama models to score Arabic e-commerce content for "humanity" vs rob
 
 Evaluate content across these dimensions:
 
+### Core Human-First Metrics
 1. **Naturalness** (0-10): How human/conversational the text feels
 2. **Keyword Stuffing** (0-10): Repetition and unnatural keyword usage (lower is worse)
 3. **AEO Readiness** (0-10): Structured for Q&A and direct answers
 4. **Dialect Usage** (0-10): Presence of regional Arabic variants (authenticity signal)
+
+### Advanced Arabic Quality Metrics
+
+#### 1. Linguistic Precision (Dialect vs. MSA)
+
+Validate authentic Arabic usage for e-commerce:
+
+**Checklist:**
+- [ ] **Local Terminology**: Uses correct local term for target market (e.g., Jawwal [جوال] for Saudi Arabia vs. Hatif [هاتف] for formal contexts)
+- [ ] **Avoid Literal Translation**: Free from "Google Translate" phrasing that feels robotic or grammatically awkward in Arabic
+- [ ] **Root-Word Clarity**: Uses strong Arabic verbs and nouns that allow AI to map product to its "Semantic Root"
+
+**Examples:**
+```python
+# GOOD: Local terminology
+"جوال آيفون 15 برو ماكس"  # Jawwal (Saudi/Gulf)
+
+# BAD: Literal translation
+"هاتف محمول آيفون 15 برو ماكس"  # Hatif mahmoul (too formal/translated)
+
+# GOOD: Root-word clarity
+"تصميم أنيق بخامات فاخرة"  # Strong verbs and nouns
+
+# BAD: Weak phrasing
+"شكل حلو وخامة كويسة"  # Vague, informal
+```
+
+#### 2. Structural Scannability (RTL Layout)
+
+Optimize for right-to-left reading and AI parsing:
+
+**Checklist:**
+- [ ] **Direct Answer Front-Loading**: Most important Arabic sentence (Price, Benefit, or Use Case) in first 100 characters
+- [ ] **Spec Tables**: Product specs in HTML table (AI models parse Arabic tables significantly better than bullet points)
+- [ ] **Header Hierarchy**: Uses H2/H3 tags that mirror how people ask questions in Arabic (e.g., "ما هي مميزات هذا المنتج؟")
+
+**Examples:**
+```html
+<!-- GOOD: Front-loaded answer -->
+<p>عباية كريب فاخرة بسعر 299 ريال مع توصيل مجاني لجميع مدن المملكة.</p>
+
+<!-- BAD: Buried answer -->
+<p>نقدم لكم مجموعة متنوعة من العبايات... [200 words]... السعر 299 ريال</p>
+
+<!-- GOOD: Spec table -->
+<table>
+  <tr><th>القماش</th><td>كريب فاخر</td></tr>
+  <tr><th>المقاس</th><td>متوفر من S إلى XL</td></tr>
+</table>
+
+<!-- GOOD: Question-based headers -->
+<h2>ما هي مميزات هذا المنتج؟</h2>
+<h3>كيف أختار المقاس المناسب؟</h3>
+```
+
+#### 3. Technical Authority (Arabic Metadata)
+
+Verify Arabic metadata completeness for AI trust:
+
+**Checklist:**
+- [ ] **Arabic Schema Strings**: `name` and `description` fields in JSON-LD provided in clear Arabic
+- [ ] **Arabic Alt-Text**: Images have descriptive Arabic alt-text (e.g., "عباية كريب سوداء بتطريز يدوي")
+- [ ] **Local Trust Signals**: Local payment methods mentioned in text (Mada, STC Pay, Tamara) - AI uses these to verify "Local Expertise"
+
+**Examples:**
+```json
+// GOOD: Arabic JSON-LD
+{
+  "@type": "Product",
+  "name": "عباية كريب سوداء فاخرة",
+  "description": "عباية من قماش الكريب الفاخر بتطريز يدوي..."
+}
+
+// BAD: English metadata for Arabic page
+{
+  "@type": "Product",
+  "name": "Black Crepe Abaya",
+  "description": "Luxury crepe abaya..."
+}
+```
+
+```html
+<!-- GOOD: Arabic alt-text -->
+<img src="abaya.jpg" alt="عباية كريب سوداء بتطريز يدوي">
+
+<!-- BAD: No alt-text or English -->
+<img src="abaya.jpg" alt="Black abaya">
+```
+
+**Local Trust Signals:**
+```markdown
+✅ GOOD:
+"الدفع عند الاستلام متاح | الدفع بالتقسيط عبر تمارا | مدى وApple Pay مقبولة"
+
+❌ BAD:
+"Payment on delivery available | Credit cards accepted"
+```
 
 ## Ollama Integration
 
@@ -25,17 +123,19 @@ import httpx
 
 async def score_content_with_ollama(text: str, lang: str = "ar"):
     """
-    Score content using local Ollama instance
+    Score content using local Ollama instance with enhanced Arabic quality checks
     """
     
     prompt = f"""
-You are an Arabic content quality analyzer for e-commerce.
+You are an Arabic content quality analyzer for e-commerce, specialized in Gulf Arabic (Khaliji) markets.
 
 Analyze this product description and score it (0-10) across these dimensions:
 1. Naturalness: Does it sound human and conversational?
 2. Keyword Stuffing: Is it repetitive or over-optimized? (10 = no stuffing, 0 = heavy stuffing)
 3. AEO Readiness: Does it answer questions directly?
 4. Dialect Usage: Does it use regional Arabic (Khaliji) naturally?
+5. Linguistic Precision: Does it use local terminology (e.g., جوال not هاتف محمول)? Is it free from literal translation?
+6. Translation Quality: Is it free from "Google Translate" awkwardness?
 
 Text:
 {text}
@@ -46,7 +146,10 @@ Return ONLY a JSON object:
   "keyword_stuffing_reverse": <score>,
   "aeo_readiness": <score>,
   "dialect_usage": <score>,
-  "reasoning": "<brief explanation>"
+  "linguistic_precision": <score>,
+  "translation_quality": <score>,
+  "reasoning": "<brief explanation>",
+  "local_terminology_used": <true/false>
 }}
 """
     
@@ -148,6 +251,135 @@ def detect_robotic_patterns(text: str) -> dict:
 Check for question-answering structure:
 
 ```python
+def check_technical_authority(jsonld: dict, html: str) -> dict:
+    """
+    Check Arabic metadata completeness and local trust signals
+    """
+    from bs4 import BeautifulSoup
+    import re
+    
+    issues = []
+    
+    # Check JSON-LD for Arabic strings
+    if jsonld:
+        name = jsonld.get("name", "")
+        description = jsonld.get("description", "")
+        
+        # Detect Arabic characters
+        arabic_pattern = re.compile(r'[\u0600-\u06FF]')
+        
+        if not arabic_pattern.search(name):
+            issues.append({
+                "type": "non_arabic_name",
+                "severity": "high",
+                "message": "Product name in JSON-LD is not in Arabic"
+            })
+        
+        if not arabic_pattern.search(description):
+            issues.append({
+                "type": "non_arabic_description",
+                "severity": "high",
+                "message": "Product description in JSON-LD is not in Arabic"
+            })
+    
+    # Check for Arabic alt-text
+    if html:
+        soup = BeautifulSoup(html, 'html.parser')
+        images = soup.find_all('img')
+        
+        missing_alt = 0
+        for img in images:
+            alt = img.get('alt', '')
+            if not alt or not re.search(r'[\u0600-\u06FF]', alt):
+                missing_alt += 1
+        
+        if missing_alt > 0:
+            issues.append({
+                "type": "missing_arabic_alt_text",
+                "severity": "medium",
+                "count": missing_alt,
+                "message": f"{missing_alt} images missing Arabic alt-text"
+            })
+    
+    # Check for local payment method mentions (trust signals)
+    text_combined = str(jsonld) + " " + (html or "")
+    local_payment_keywords = [
+        "مدى", "Mada", "تمارا", "Tamara", "تابي", "Tabby",
+        "STC Pay", "stc pay", "Apple Pay", "الدفع عند الاستلام"
+    ]
+    
+    found_local_payments = [kw for kw in local_payment_keywords if kw in text_combined]
+    
+    if not found_local_payments:
+        issues.append({
+            "type": "no_local_trust_signals",
+            "severity": "low",
+            "message": "No local payment methods mentioned (Mada, Tamara, STC Pay)"
+        })
+    
+    return {
+        "has_issues": len(issues) > 0,
+        "issues": issues,
+        "local_trust_signals": found_local_payments,
+        "score": max(0, 10 - len(issues) * 2.5)
+    }
+
+
+def check_structural_scannability(text: str, html: str = None) -> dict:
+    """
+    Check RTL layout optimization and front-loading
+    """
+    from bs4 import BeautifulSoup
+    
+    issues = []
+    
+    # Check if first 100 characters contain key info (price, benefit)
+    first_100 = text[:100] if len(text) >= 100 else text
+    
+    # Price patterns in Arabic
+    price_patterns = [r'\d+\s*ريال', r'\d+\s*SAR', r'\d+\s*درهم']
+    has_early_price = any(re.search(pattern, first_100) for pattern in price_patterns)
+    
+    if not has_early_price:
+        issues.append({
+            "type": "no_front_loaded_price",
+            "severity": "medium",
+            "message": "Price not mentioned in first 100 characters"
+        })
+    
+    # Check for HTML tables (better for Arabic specs)
+    if html:
+        soup = BeautifulSoup(html, 'html.parser')
+        tables = soup.find_all('table')
+        
+        if len(tables) == 0:
+            issues.append({
+                "type": "no_spec_tables",
+                "severity": "low",
+                "message": "No HTML tables found (recommended for Arabic spec display)"
+            })
+        
+        # Check for question-based headers
+        question_headers = []
+        for h in soup.find_all(['h2', 'h3']):
+            if any(q in h.get_text() for q in ['ما هي', 'ما هو', 'كيف', 'لماذا', 'متى']):
+                question_headers.append(h.get_text())
+        
+        if len(question_headers) == 0:
+            issues.append({
+                "type": "no_question_headers",
+                "severity": "medium",
+                "message": "No question-based H2/H3 headers (e.g., 'ما هي مميزات المنتج؟')"
+            })
+    
+    return {
+        "has_issues": len(issues) > 0,
+        "issues": issues,
+        "has_early_price": has_early_price,
+        "score": max(0, 10 - len(issues) * 2.5)
+    }
+
+
 def check_aeo_readiness(text: str, html_structure: str = None):
     """
     Check if content is structured for Answer Engines
@@ -206,9 +438,9 @@ def check_aeo_readiness(text: str, html_structure: str = None):
 Aggregate all scoring methods:
 
 ```python
-async def score_product_description(text: str, html: str = None):
+async def score_product_description(text: str, html: str = None, jsonld: dict = None):
     """
-    Complete content quality scoring
+    Complete content quality scoring with advanced Arabic checks
     """
     
     # 1. Quick heuristic checks
@@ -217,33 +449,57 @@ async def score_product_description(text: str, html: str = None):
     # 2. AEO structure check
     aeo_check = check_aeo_readiness(text, html)
     
-    # 3. LLM-based deep analysis (only if heuristics pass minimum threshold)
+    # 3. Advanced Arabic quality checks
+    structural_check = check_structural_scannability(text, html)
+    technical_check = check_technical_authority(jsonld or {}, html or "")
+    
+    # 4. LLM-based deep analysis (only if heuristics pass minimum threshold)
     if robotic_check["score"] >= 5:
         llm_score = await score_content_with_ollama(text)
     else:
         llm_score = {"naturalness": robotic_check["score"], "reasoning": "Failed heuristic checks"}
     
-    # Combine scores
+    # Combine scores with weighted average
+    scores = [
+        robotic_check["score"],
+        aeo_check["score"],
+        structural_check["score"],
+        technical_check["score"],
+        llm_score.get("naturalness", 0)
+    ]
+    
+    overall_score = sum(scores) / len(scores)
+    
     final_score = {
-        "overall": (robotic_check["score"] + aeo_check["score"] + llm_score.get("naturalness", 0)) / 3,
+        "overall": round(overall_score, 1),
         "robotic_patterns": robotic_check,
         "aeo_readiness": aeo_check,
+        "structural_scannability": structural_check,
+        "technical_authority": technical_check,
         "llm_analysis": llm_score,
-        "recommendation": generate_recommendation(robotic_check, aeo_check, llm_score)
+        "recommendation": generate_recommendation(
+            robotic_check, aeo_check, structural_check, technical_check, llm_score
+        )
     }
     
     return final_score
 
-def generate_recommendation(robotic, aeo, llm):
-    """Generate actionable recommendations"""
+def generate_recommendation(robotic, aeo, structural, technical, llm):
+    """Generate actionable recommendations based on all checks"""
     if robotic["score"] < 5:
         return "REWRITE: Content appears robotic or keyword-stuffed"
+    elif technical["score"] < 5:
+        return "FIX: Add Arabic metadata to JSON-LD and image alt-text"
+    elif structural["score"] < 5:
+        return "RESTRUCTURE: Front-load key info and use spec tables"
     elif aeo["score"] < 5:
         return "IMPROVE: Add Q&A structure and direct answers"
     elif llm.get("dialect_usage", 0) < 3:
         return "ENHANCE: Add regional dialect for authenticity"
+    elif llm.get("linguistic_precision", 0) < 5:
+        return "REFINE: Use local terminology (e.g., جوال not هاتف محمول)"
     else:
-        return "GOOD: Content is human-first and AEO-ready"
+        return "EXCELLENT: Content is human-first, AEO-ready, and locally optimized"
 ```
 
 ## Model Selection
@@ -273,12 +529,25 @@ ollama serve
         "score": 7,
         "signals": ["direct_question", "experience_signal"]
     },
+    "structural_scannability": {
+        "score": 8,
+        "has_early_price": true,
+        "issues": [{"type": "no_spec_tables", "severity": "low"}]
+    },
+    "technical_authority": {
+        "score": 6,
+        "local_trust_signals": ["مدى", "تمارا"],
+        "issues": [{"type": "missing_arabic_alt_text", "count": 3}]
+    },
     "llm_analysis": {
         "naturalness": 8,
         "keyword_stuffing_reverse": 7,
+        "linguistic_precision": 6,
+        "translation_quality": 7,
+        "local_terminology_used": true,
         "reasoning": "..."
     },
-    "recommendation": "ENHANCE: Add regional dialect for authenticity"
+    "recommendation": "REFINE: Use local terminology (e.g., جوال not هاتف محمول)"
 }
 ```
 
