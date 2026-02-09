@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     CACHE_TTL_ANALYTICS: int = 600  # 10 minutes
     CACHE_TTL_LIST: int = 60  # 1 minute
     
+    # Database debugging
+    SQL_ECHO: bool = False  # Set to True to log all SQL queries
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

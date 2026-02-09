@@ -7,7 +7,7 @@ lifecycle management and testing.
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.infrastructure.database import get_db_session
 from app.domain.repositories import IAuditRepository
 from app.infrastructure.persistence import SQLAlchemyAuditRepository
 from app.application.use_cases import (
@@ -18,7 +18,7 @@ from app.application.use_cases import (
 
 
 # Repository Factory
-def get_audit_repository(db: Session = Depends(get_db)) -> IAuditRepository:
+def get_audit_repository(db: Session = Depends(get_db_session)) -> IAuditRepository:
     """Get audit repository instance.
     
     Args:
