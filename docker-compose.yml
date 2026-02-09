@@ -1,55 +1,263 @@
 version: '3.8'
 
+# =============================================================================
+# SANAD AEO AUDITOR - Docker Compose Configuration
+# =============================================================================
+
 services:
+  # ---------------------------------------------------------------------------
+  # FastAPI Application Server
+  # ---------------------------------------------------------------------------
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    container_name: sanad_api
     ports:
       - "${API_PORT:-8000}:8000"
-    env_file: .env
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - HOME=/var/sanad
+      - CRAWL4AI_DB_PATH=/var/sanad/crawl4ai
     depends_on:
-      - postgres
-      - redis
-      - ollama
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Note: Using localhost Ollama via host.docker.internal:11434
     volumes:
-      - ./app:/app/app
-      - ${STORAGE_PATH:-./storage}:/var/sanad/audits
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-  
+      # Mount app directory for hot reload in development
+      - ./app:/app/app:${VOLUME_MODE:-ro}
+      # Mount alembic migrations
+      - ./app/alembic:/app/app/alembic:${VOLUME_MODE:-ro}
+      # Mount tests directory
+      - ./tests:/app/tests:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+      - ./conftest.py:/app/conftest.py:ro
+      # Persistent storage for audit files
+      - audit_storage:/var/sanad/audits
+      # Logs
+      - ./logs:/app/logs
+    networks:
+      - sanad_network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=5)" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL...';
+        until python -c 'import psycopg2; psycopg2.connect(\"${DATABASE_URL}\")' 2>/dev/null; do
+          echo '  PostgreSQL not ready, waiting...';
+          sleep 2;
+        done;
+        echo '✓ PostgreSQL ready!';
+        echo 'Running Alembic migrations...';
+        alembic upgrade head;
+        echo 'Starting FastAPI server...';
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 ${UVICORN_RELOAD:---reload};
+      "
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker for Background Tasks
+  # ---------------------------------------------------------------------------
   celery-worker:
-    build: .
-    env_file: .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    container_name: sanad_celery_worker
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - C_FORCE_ROOT=true
+      - HOME=/var/sanad
+      - CRAWL4AI_DB_PATH=/var/sanad/crawl4ai
     depends_on:
-      - postgres
-      - redis
-      - ollama
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Note: Using localhost Ollama via host.docker.internal:11434
     volumes:
-      - ./app:/app/app
-      - ${STORAGE_PATH:-./storage}:/var/sanad/audits
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
-  
+      # Mount app directory for hot reload in development
+      - ./app:/app/app:${VOLUME_MODE:-ro}
+      # Persistent storage for audit files
+      - audit_storage:/var/sanad/audits
+      # Logs
+      - ./logs:/app/logs
+    networks:
+      - sanad_network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for services...' &&
+        sleep 10 &&
+        echo 'Starting Celery worker...' &&
+        celery -A app.celery_app worker 
+          --loglevel=${LOG_LEVEL:-info} 
+          --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+          --max-tasks-per-child=10
+          --time-limit=${CELERY_TASK_TIMEOUT:-300}
+      "
+
+  # ---------------------------------------------------------------------------
+  # Celery Beat Scheduler (Optional - for periodic tasks)
+  # ---------------------------------------------------------------------------
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    container_name: sanad_celery_beat
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:${VOLUME_MODE:-ro}
+      - ./logs:/app/logs
+    networks:
+      - sanad_network
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=${LOG_LEVEL:-info}
+    profiles:
+      - with-scheduler
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
+    container_name: sanad_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-sanad_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sanad_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-sanad_db}
+      # Performance tuning
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  
+      # Optional: custom PostgreSQL config
+      # - ./postgres.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - sanad_network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sanad_user} -d ${POSTGRES_DB:-sanad_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache & Message Broker
+  # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
+    container_name: sanad_redis
     ports:
-      - "6379:6379"
-  
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - ollama_data:/root/.ollama
+      - redis_data:/data
+    networks:
+      - sanad_network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
 
+  # ---------------------------------------------------------------------------
+  # Ollama LLM Server - USING LOCALHOST
+  # ---------------------------------------------------------------------------
+  # Ollama runs on the host machine (not in Docker)
+  # Containers access it via host.docker.internal:11434
+  # Make sure Ollama is running on your host: http://localhost:11434
+  #
+  # To start Ollama on host:
+  #   ollama serve
+  #
+  # To pull model on host:
+  #   ollama pull qwen2.5:7b
+
+  # ---------------------------------------------------------------------------
+  # pgAdmin - PostgreSQL Management (Optional)
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sanad_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sanad.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - sanad_network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    profiles:
+      - with-pgadmin
+
+  # ---------------------------------------------------------------------------
+  # Flower - Celery Monitoring (Optional)
+  # ---------------------------------------------------------------------------
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: sanad_flower
+    env_file:
+      - .env
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - sanad_network
+    restart: unless-stopped
+    command: celery -A app.celery_app flower --port=5555
+    profiles:
+      - with-monitoring
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  sanad_network:
+    driver: bridge
+    name: sanad_network
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
 volumes:
   postgres_data:
-  ollama_data:
+    name: sanad_postgres_data
+  redis_data:
+    name: sanad_redis_data
+  # ollama_data - Not needed (using localhost Ollama)
+  audit_storage:
+    name: sanad_audit_storage
+  pgadmin_data:
+    name: sanad_pgadmin_data

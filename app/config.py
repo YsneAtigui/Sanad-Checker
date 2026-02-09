@@ -34,9 +34,16 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     
+    # Cache TTLs (seconds)
+    CACHE_TTL_DASHBOARD: int = 300  # 5 minutes
+    CACHE_TTL_AUDIT: int = 3600  # 1 hour
+    CACHE_TTL_ANALYTICS: int = 600  # 10 minutes
+    CACHE_TTL_LIST: int = 60  # 1 minute
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra env vars that aren't in Settings
 
 
 settings = Settings()

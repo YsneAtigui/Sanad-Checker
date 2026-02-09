@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.config import settings
-from app.api.v1 import health, audits, protocols, extraction, schema, edge, scoring, reports
+from app.api.v1 import health, audits, protocols, extraction, schema, edge, scoring, reports, analytics
 
 # Fix for Windows + Python 3.13 + Playwright/Crawl4AI compatibility issues
 if sys.platform == 'win32':
@@ -35,6 +35,10 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# Register global exception handlers
+from app.exceptions import register_exception_handlers
+register_exception_handlers(app)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -45,8 +49,9 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(health.router, prefix="/health", tags=["Health"])
+app.include_router(health.router, tags=["Health"])
 app.include_router(audits.router, prefix="/api/v1/audits", tags=["Audits"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 app.include_router(protocols.router, prefix="/api/v1/protocols", tags=["Protocols"])
 app.include_router(extraction.router, prefix="/api/v1/extraction", tags=["Extraction"])
 app.include_router(schema.router, prefix="/api/v1/schema", tags=["Schema"])

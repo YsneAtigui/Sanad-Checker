@@ -1,12 +1,11 @@
-# Python
+# Ignore Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Distribution / packaging
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -23,31 +22,60 @@ wheels/
 .installed.cfg
 *.egg
 
-# Environment
-.env
-.env.local
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
 
-# Storage
-storage/
-/var/sanad/
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
 
 # Database
 *.db
-*.sqlite
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+*.sqlite3
+postgres_data/
 
 # Logs
 *.log
 logs/
+app/logs/
 
-venv/
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+
+# Audit outputs
+audit_report_*.json
+audit_report_*.md
+storage/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic
+app/alembic/versions/__pycache__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Ollama
+ollama_data/

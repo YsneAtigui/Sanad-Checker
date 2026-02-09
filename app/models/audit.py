@@ -33,10 +33,29 @@ class AuditJob(Base):
     status = Column(Enum(AuditStatus), default=AuditStatus.QUEUED)
     
     # Results (JSON columns)
+    # Each JSON field follows a standardized schema documented below
+    
+    #protocol_results schema: {"checks": [...], "score": int}
+    # - checks: list of {"name": str, "status": str, "detail": str, "raw_content": str}
+    # - score: 0-100
     protocol_results = Column(JSON)
+    
+    # schema_results schema: {"fields": [...], "extracted_jsonld": str, "schema_type": str, "score": int}
+    # - fields: list of {"field": str, "status": str, "visible_value": str, "structured_value": str}
+    # - score: 0-100
     schema_results = Column(JSON)
+    
+    # content_results schema: {"aeo_readiness_score": int, "robotic_pattern_score": str, "issues": [...], "score": int}
+    # - issues: list of {"type": str, "severity": str, "description": str, "location": str}
+    # - score: 0-100
     content_results = Column(JSON)
+    
+    # edge_results schema: {"agents": [...], "cloudflare_detected": bool, "bot_challenge_enabled": bool, "score": int}
+    # - agents: list of {"name": str, "icon": str, "status": str, "response_time_ms": int, "data_completeness": str}
+    # - score: 0-100
     edge_results = Column(JSON)
+    
+    # bilingual_results schema: {"has_arabic": bool, "has_english": bool, "consistency_score": int, "issues": [...]}
     bilingual_results = Column(JSON)
     
     # Scoring
@@ -55,6 +74,8 @@ class AuditJob(Base):
     
     # Relationships
     issues = relationship("AuditIssue", back_populates="audit_job", cascade="all, delete-orphan")
+    recommendations = relationship("AuditRecommendation", back_populates="audit_job", cascade="all, delete-orphan")
+
 
 
 class AuditIssue(Base):
