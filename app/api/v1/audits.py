@@ -34,7 +34,7 @@ from app.tasks.audit_tasks import run_audit_task
 from app.cache import redis_client
 from app.config import settings
 
-router = APIRouter(prefix="/audits")
+router = APIRouter()
 
 
 @router.post("/", response_model=AuditResponse, status_code=201)

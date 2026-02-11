@@ -39,6 +39,10 @@ app = FastAPI(
 from app.exceptions import register_exception_handlers
 register_exception_handlers(app)
 
+# Add correlation ID middleware
+from app.infrastructure.logging import CorrelationIdMiddleware
+app.add_middleware(CorrelationIdMiddleware)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,

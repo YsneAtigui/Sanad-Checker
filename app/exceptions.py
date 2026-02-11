@@ -4,9 +4,15 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from redis.exceptions import RedisError
-import logging
 
-logger = logging.getLogger(__name__)
+from app.infrastructure.logging import get_logger
+from app.domain.exceptions import (
+    AuditError,
+    AuditNotFoundError,
+    ServiceUnavailableError,
+)
+
+logger = get_logger(__name__)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -74,6 +80,28 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
+async def domain_exception_handler(request: Request, exc: AuditError):
+    """
+    Handle custom domain exceptions
+    """
+    logger.warning(
+        f"Domain error on {request.url.path}: {exc.message}",
+        extra={"error_code": exc.code, "context": exc.context}
+    )
+    
+    # Map to appropriate HTTP status
+    status_code = status.HTTP_400_BAD_REQUEST
+    if isinstance(exc, AuditNotFoundError):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, ServiceUnavailableError):
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    
+    return JSONResponse(
+        status_code=status_code,
+        content=exc.to_dict()
+    )
+
+
 def register_exception_handlers(app):
     """
     Register all custom exception handlers with FastAPI app
@@ -86,7 +114,13 @@ def register_exception_handlers(app):
     from sqlalchemy.exc import SQLAlchemyError
     from redis.exceptions import RedisError
     
+    # Domain exceptions (check first, before generic)
+    app.add_exception_handler(AuditError, domain_exception_handler)
+    
+    # Framework exceptions
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(SQLAlchemyError, database_exception_handler)
     app.add_exception_handler(RedisError, redis_exception_handler)
+    
+    # Catch-all (last)
     app.add_exception_handler(Exception, general_exception_handler)

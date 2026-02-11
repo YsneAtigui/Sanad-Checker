@@ -30,6 +30,47 @@ def get_audit_repository(db: Session = Depends(get_db_session)) -> IAuditReposit
     return SQLAlchemyAuditRepository(db)
 
 
+# Service Factories
+def get_protocol_service():
+    """Get protocol checking service instance.
+    
+    Returns:
+        Configured ProtocolService
+    """
+    from app.services.protocol_standardized import ProtocolService
+    return ProtocolService()
+
+
+def get_schema_service():
+    """Get schema validation service instance.
+    
+    Returns:
+        Configured SchemaService
+    """
+    from app.services.schema_standardized import SchemaService
+    return SchemaService()
+
+
+def get_content_service():
+    """Get content quality service instance.
+    
+    Returns:
+        Configured ContentService
+    """
+    from app.services.content_standardized import ContentService
+    return ContentService()
+
+
+def get_edge_service():
+    """Get edge visibility service instance.
+    
+    Returns:
+        Configured EdgeService
+    """
+    from app.services.edge_standardized import EdgeService
+    return EdgeService()
+
+
 # Use Case Factories
 def get_create_audit_use_case(
     repository: IAuditRepository = Depends(get_audit_repository)

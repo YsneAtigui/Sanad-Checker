@@ -12,7 +12,8 @@ FROM python:3.13-slim AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -75,8 +76,14 @@ RUN groupadd -r sanad && useradd -r -g sanad sanad
 # Create necessary directories
 RUN mkdir -p /var/sanad/audits \
     && chown -R sanad:sanad /var/sanad \
+    && chown -R sanad:sanad /var/sanad \
     && mkdir -p /app/logs \
-    && chown -R sanad:sanad /app/logs
+    && chown -R sanad:sanad /app/logs \
+    && mkdir -p /ms-playwright \
+    && chown -R sanad:sanad /ms-playwright
+
+# Install Playwright browsers
+RUN playwright install chromium
 
 # Copy application code
 COPY --chown=sanad:sanad app ./app

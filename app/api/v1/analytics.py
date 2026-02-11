@@ -8,7 +8,7 @@ from app.cache import redis_client
 from app.config import settings
 import json
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(tags=["analytics"])
 
 
 @router.get("/dashboard-stats")

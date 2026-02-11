@@ -78,3 +78,54 @@ class AuditListResultDTO:
     total: int
     limit: int
     offset: int
+
+
+# Service response models
+from app.application.dto.responses import (
+    # Protocol
+    ProtocolCheckResult,
+    ProtocolResponse,
+    # Schema
+    SchemaFieldResult,
+    SchemaResponse,
+    # Content
+    ContentIssue,
+    ContentResponse,
+    # Edge
+    AgentAccessResult,
+    EdgeResponse,
+    # Analytics
+    PlatformDistribution,
+    StatusDistribution,
+    ScoreDistribution,
+    AnalyticsResponse,
+    # Extraction
+    ExtractionResponse,
+    # Report
+    ReportResponse,
+)
+
+__all__ = [
+    # Request DTOs
+    "CreateAuditDTO",
+    "AuditDTO",
+    "AuditDetailDTO",
+    "PaginationDTO",
+    "ListAuditsDTO",
+    "AuditListResultDTO",
+    # Service Response Models
+    "ProtocolCheckResult",
+    "ProtocolResponse",
+    "SchemaFieldResult",
+    "SchemaResponse",
+    "ContentIssue",
+    "ContentResponse",
+    "AgentAccessResult",
+    "EdgeResponse",
+    "PlatformDistribution",
+    "StatusDistribution",
+    "ScoreDistribution",
+    "AnalyticsResponse",
+    "ExtractionResponse",
+    "ReportResponse",
+]

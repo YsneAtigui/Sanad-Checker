@@ -30,7 +30,7 @@ class AuditJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     url = Column(String, nullable=False)
     platform = Column(String)  # salla, zid, shopify, unknown
-    status = Column(Enum(AuditStatus), default=AuditStatus.QUEUED)
+    status = Column(Enum(AuditStatus, values_callable=lambda obj: [e.value for e in obj]), default=AuditStatus.QUEUED)
     
     # Results (JSON columns)
     # Each JSON field follows a standardized schema documented below
@@ -86,7 +86,7 @@ class AuditIssue(Base):
     audit_job_id = Column(UUID(as_uuid=True), ForeignKey("audit_jobs.id", ondelete="CASCADE"))
     
     issue_type = Column(String, nullable=False)
-    severity = Column(Enum(IssueSeverity), nullable=False)
+    severity = Column(Enum(IssueSeverity, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text)
     recommendation = Column(Text)
