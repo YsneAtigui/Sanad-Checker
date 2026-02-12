@@ -155,7 +155,7 @@ def log_performance(func: Callable) -> Callable:
         )
         
         try:
-            result = wrapper(*args, **kwargs)
+            result = func(*args, **kwargs)
             duration = time.time() - start_time
             
             logger.info(

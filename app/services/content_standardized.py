@@ -153,10 +153,14 @@ class ContentService(BaseService):
         robotic_patterns = result.get("robotic_patterns", {})
         if robotic_patterns.get("has_issues"):
             for issue in robotic_patterns.get("issues", []):
+                # Convert issue dict to description string
+                issue_type = issue.get("type", "unknown")
+                description = self._format_issue_description(issue)
+                
                 issues.append(ContentIssue(
                     type="robotic_pattern",
-                    severity="medium",
-                    description=issue,
+                    severity=issue.get("severity", "medium"),
+                    description=description,
                     location="Product description"
                 ))
         
@@ -188,6 +192,35 @@ class ContentService(BaseService):
             ))
         
         return issues
+    
+    def _format_issue_description(self, issue: dict) -> str:
+        """Format issue dict into a human-readable description.
+        
+        Args:
+            issue: Issue dict from robotic pattern detection
+            
+        Returns:
+            Formatted description string
+        """
+        issue_type = issue.get("type", "unknown")
+        
+        if issue_type == "keyword_repetition":
+            words = issue.get("words", [])
+            words_str = ", ".join(words[:3])
+            return f"Keyword repetition detected: {words_str}"
+        elif issue_type == "all_caps":
+            return "Content is written in ALL CAPS (appears aggressive)"
+        elif issue_type == "no_punctuation":
+            return "Missing punctuation in content"
+        elif issue_type == "mixed_language":
+            count = issue.get("count", 0)
+            return f"Mixed language content detected ({count} English words in Arabic text)"
+        elif issue_type == "seo_template_repetition":
+            pattern = issue.get("pattern", "")
+            count = issue.get("count", 0)
+            return f"SEO template repetition detected: {pattern} ({count} times)"
+        else:
+            return f"Content quality issue: {issue_type}"
     
     def _detect_keyword_stuffing(self, text: str) -> bool:
         """Detect keyword stuffing in text.
